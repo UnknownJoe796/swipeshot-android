@@ -25,7 +25,7 @@ fun DatagramSocket.receiveQueue(
                 val data = ByteArray(4096)
                 val packet = DatagramPacket(data, data.size)
                 receive(packet)
-                println("RECEIVING ${packet.address}")
+//                println("RECEIVING ${packet.address}")
                 queue.add(packet)
             } catch(e: SocketTimeoutException) {
                 /*squish*/
@@ -47,7 +47,7 @@ fun DatagramSocket.sendQueue(
                 item = queue.poll(100, TimeUnit.MILLISECONDS)
                 if (item != null) {
                     send(item)
-                    println("SENDING")
+//                    println("SENDING")
                 }
             } catch(e: Exception) {
                 e.printStackTrace()

@@ -46,7 +46,9 @@ class GameWorld(val player: Player?, val phase: String = "default", val networki
 
         if (player != null) {
             players[player.id] = player
-            player.position.set(selectSpawnPoint())
+            val spawn = selectSpawnPoint()
+            player.position.set(spawn)
+            println("SPAWN $spawn")
             player.phase = phase
         }
     }
@@ -250,11 +252,11 @@ class GameWorld(val player: Player?, val phase: String = "default", val networki
 
         for (cellX in 0..cellWidth - 1) {
             spawnPoints += PointF(cellX * cellSize + cellSize / 2, cellSize / 2)
-            spawnPoints += PointF(cellX * cellSize + cellSize / 2, height * cellSize + cellSize / 2)
+            spawnPoints += PointF(cellX * cellSize + cellSize / 2, (cellHeight - 1) * cellSize + cellSize / 2)
         }
         for (cellY in 1..cellHeight - 2) {
             spawnPoints += PointF(cellSize / 2, cellY * cellSize + cellSize / 2)
-            spawnPoints += PointF(width * cellSize + cellSize / 2, cellY * cellSize + cellSize / 2)
+            spawnPoints += PointF((cellWidth - 1) * cellSize + cellSize / 2, cellY * cellSize + cellSize / 2)
         }
     }
 }

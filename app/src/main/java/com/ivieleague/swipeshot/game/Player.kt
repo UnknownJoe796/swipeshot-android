@@ -14,8 +14,8 @@ class Player(var name: String = "") {
     companion object {
         const val radius = 1f
         const val cooldownMax = 1f
-        const val shotSpeed = 10f
-        const val travelSpeed = 4f
+        const val shotSpeed = 15f
+        const val travelSpeed = 6f
         const val startupInvincibilityMax = 2f
 
 
