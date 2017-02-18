@@ -24,7 +24,7 @@ class Player {
     var cooldown = cooldownMax
     val bullets = ArrayList<Bullet>()
 
-    val debugDraws = ArrayList<(Canvas) -> Unit>()
+    @Transient val debugDraws = ArrayList<(Canvas) -> Unit>()
 
     @Transient val bounds = RectF()
     @Transient val ejector = PointPolygonResult()
@@ -56,15 +56,26 @@ class Player {
         for (wall in world.environment) {
 
             if (bounds.intersect(wall.bounds)) {
+                println("EJECTING + ${System.currentTimeMillis()}")
                 ejector.polygon = wall.polygon
                 ejector.point = this.position
                 ejector.calculate()
-                val dist = ejector.best.signedBoundedDistance - radius
+                val dist = ejector.best.boundedDistance - radius
                 if (dist < 0f) {
                     val amount = ejector.best.normal
                     amount.length -= radius
                     position -= amount
                 }
+//                position += velocity * timePassed
+//                ejector.polygon = wall.polygon
+//                ejector.point = this.position
+//                ejector.calculate()
+//                val dist2 = ejector.best.signedBoundedDistance - radius
+//                if (dist2 < 0f) {
+//                    val amount = ejector.best.normal
+//                    amount.length -= radius
+//                    position -= amount
+//                }
             }
         }
 

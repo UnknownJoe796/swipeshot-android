@@ -1,6 +1,7 @@
 package com.ivieleague.swipeshot.math
 
 import android.graphics.PointF
+import android.graphics.RectF
 import java.util.*
 
 /**
@@ -55,6 +56,21 @@ class PolygonF(val list: MutableList<PointF> = ArrayList()) : MutableList<PointF
 
     fun normalize() {
         if (clockwise) list.reverse()
+    }
+
+    fun getBounds(existing: RectF = RectF()): RectF {
+
+        existing.left = list[0].x
+        existing.right = list[0].x
+        existing.top = list[0].y
+        existing.bottom = list[0].y
+        for (point in list) {
+            if (point.x < existing.left) existing.left = point.x
+            if (point.y < existing.top) existing.top = point.y
+            if (point.x > existing.right) existing.right = point.x
+            if (point.y > existing.bottom) existing.bottom = point.y
+        }
+        return existing
     }
 }
 

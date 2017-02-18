@@ -46,7 +46,6 @@ class GameWorld(var myPlayerId: String) {
         environment += Wall(PolygonF(mutableListOf(
                 PointF(-5f, -5f),
                 PointF(-5f, -10f),
-                //                PointF(-10f, -10f),
                 PointF(-10f, -5f)
         )))
     }
