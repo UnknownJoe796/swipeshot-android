@@ -1,10 +1,18 @@
 package com.ivieleague.swipeshot
 
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.PointF
+import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.View
-import com.ivieleague.swipeshot.game.GameModel
+import com.ivieleague.swipeshot.game.GameWorld
+import com.ivieleague.swipeshot.math.length
+import com.ivieleague.swipeshot.math.minus
+import com.lightningkite.kotlin.anko.lifecycle
 import com.lightningkite.kotlin.anko.viewcontrollers.AnkoViewController
 import com.lightningkite.kotlin.anko.viewcontrollers.implementations.VCActivity
+import com.lightningkite.kotlin.lifecycle.listen
 import org.jetbrains.anko.AnkoContext
 import org.jetbrains.anko.frameLayout
 import org.jetbrains.anko.matchParent
@@ -16,7 +24,7 @@ import java.util.*
  */
 class GameVC : AnkoViewController() {
 
-    val game = GameModel()
+    val game = GameWorld("SLSH-1")
     val surfaceHolders = ArrayList<SurfaceHolder>()
 
     override fun createView(ui: AnkoContext<VCActivity>): View = ui.frameLayout {
@@ -36,6 +44,8 @@ class GameVC : AnkoViewController() {
                     stopLoopIfNoHolders()
                 }
             })
+
+            setupTouch(this)
         }.lparams(matchParent, matchParent)
     }
 
@@ -61,7 +71,7 @@ class GameVC : AnkoViewController() {
                     game.step((frameNanoseconds / 1000000000.0).toFloat())
 
                     for (holder in surfaceHolders) {
-                        val canvas = holder.lockCanvas()
+                        val canvas = holder.lockCanvas() ?: continue
                         game.render(canvas)
                         holder.unlockCanvasAndPost(canvas)
                     }
@@ -82,6 +92,119 @@ class GameVC : AnkoViewController() {
         if (surfaceHolders.isEmpty()) {
             thread?.keepRunning = false
             thread = null
+        }
+    }
+
+    fun setupTouch(view: View) {
+        val positions = object {
+            var moveTouchId: Int? = null
+            var moveStartPoint = PointF()
+            var moveCurrentPoint = PointF()
+            var shootTouchId: Int? = null
+            var shootStartPoint = PointF()
+            var shootCurrentPoint = PointF()
+        }
+        val paint = Paint().apply {
+            color = Color.BLACK
+            style = Paint.Style.STROKE
+            strokeWidth = 2f
+        }
+
+        view.lifecycle.listen(game.controlOverlayListeners) { canvas ->
+            synchronized(positions) {
+                if (positions.moveTouchId != null) {
+                    canvas.drawLine(positions.moveStartPoint, positions.moveCurrentPoint, paint)
+                }
+                if (positions.shootTouchId != null) {
+                    canvas.drawLine(positions.shootStartPoint, positions.shootCurrentPoint, paint)
+                }
+            }
+        }
+
+        view.lifecycle.listen(game.stepListeners) {
+            if (positions.moveTouchId != null) {
+                val delta = positions.moveCurrentPoint - positions.moveStartPoint
+                if (delta.length > 20f)
+                    game.players[game.myPlayerId]?.velocity?.set(delta)
+            }
+        }
+
+        view.setOnTouchListener { view, motionEvent ->
+            synchronized(positions) {
+                val touchId = motionEvent.getPointerId(motionEvent.actionIndex)
+                val action = motionEvent.actionMasked
+                val x = motionEvent.getX(motionEvent.actionIndex)
+                val y = motionEvent.getY(motionEvent.actionIndex)
+                when (action) {
+                    MotionEvent.ACTION_DOWN,
+                    MotionEvent.ACTION_POINTER_DOWN -> {
+                        if (x < view.width / 2) {
+                            //move
+                            if (positions.moveTouchId == null) {
+                                positions.moveTouchId = touchId
+                                positions.moveStartPoint.x = x
+                                positions.moveStartPoint.y = y
+                                positions.moveCurrentPoint.x = x
+                                positions.moveCurrentPoint.y = y
+                            }
+                        } else {
+                            //shoot
+                            if (positions.shootTouchId == null) {
+                                positions.shootTouchId = touchId
+                                positions.shootStartPoint.x = x
+                                positions.shootStartPoint.y = y
+                                positions.shootCurrentPoint.x = x
+                                positions.shootCurrentPoint.y = y
+                            }
+                        }
+                        Unit
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        for (i in 0..motionEvent.pointerCount - 1) {
+                            val subTouchId = motionEvent.getPointerId(i)
+                            val subX = motionEvent.getX(i)
+                            val subY = motionEvent.getY(i)
+                            when (subTouchId) {
+                                positions.moveTouchId -> {
+                                    positions.moveCurrentPoint.x = subX
+                                    positions.moveCurrentPoint.y = subY
+                                }
+                                positions.shootTouchId -> {
+                                    positions.shootCurrentPoint.x = subX
+                                    positions.shootCurrentPoint.y = subY
+                                }
+                            }
+                        }
+                        Unit
+                    }
+                    MotionEvent.ACTION_UP,
+                    MotionEvent.ACTION_POINTER_UP,
+                    MotionEvent.ACTION_CANCEL -> {
+                        when (touchId) {
+                            positions.moveTouchId -> {
+                                positions.moveTouchId = null
+
+                                //stop
+                                game.stepQueue += {
+                                    game.players[game.myPlayerId]?.velocity?.set(0f, 0f)
+                                }
+                            }
+                            positions.shootTouchId -> {
+                                positions.shootTouchId = null
+
+                                //shoot
+                                game.stepQueue += {
+                                    val delta = positions.shootCurrentPoint - positions.shootStartPoint
+                                    if (delta.length > 20f)
+                                        game.players[game.myPlayerId]?.shoot(delta)
+                                }
+                            }
+                        }
+                        Unit
+                    }
+                }
+            }
+            true
         }
     }
 }

@@ -4,10 +4,15 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.PointF
+import com.ivieleague.swipeshot.clear
+import com.ivieleague.swipeshot.math.PolygonF
+import com.lightningkite.kotlin.runAll
+import java.util.*
+import java.util.concurrent.ConcurrentLinkedQueue
 
-class GameWorld : DynamicGameComponent(){
+class GameWorld(var myPlayerId: String) {
 
-    companion object{
+    companion object {
         val commonPaint = Paint().apply {
             color = Color.BLACK
             style = Paint.Style.STROKE
@@ -15,20 +20,50 @@ class GameWorld : DynamicGameComponent(){
         }
     }
 
-    val cameraWorldUnitsToShow = 20f
+    @Transient val stepQueue = ConcurrentLinkedQueue<GameWorld.(Float) -> Unit>()
+    @Transient val stepListeners = ConcurrentLinkedQueue<GameWorld.(Float) -> Unit>()
+    @Transient val controlOverlayListeners = ConcurrentLinkedQueue<GameWorld.(Canvas) -> Unit>()
+
+    var cameraWorldUnitsToShow = 20f
     val cameraPosition = PointF(0f, 0f)
 
-    override fun step(timePassed: Float) {
-        super.step(timePassed)
+    val players = HashMap<String, Player>()
+    val environment = ArrayList<Wall>()
+
+    //test setup
+    init {
+        testSetup()
     }
 
-    override fun render(canvas: Canvas) {
+    fun testSetup() {
+        players[myPlayerId] = Player()
+        environment += Wall(PolygonF(mutableListOf(
+                PointF(5f, 5f),
+                PointF(5f, 10f),
+                PointF(10f, 10f),
+                PointF(10f, 5f)
+        )))
+    }
+
+    fun step(timePassed: Float) {
+        stepQueue.clear { it.invoke(this, timePassed) }
+        stepListeners.runAll(this, timePassed)
+        players.forEach { it.value.step(this, timePassed) }
+    }
+
+    fun render(canvas: Canvas) {
+        canvas.drawColor(Color.WHITE)
         canvas.save()
-        canvas.translate(canvas.width/2f, canvas.height/2f)
+        canvas.translate(canvas.width / 2f, canvas.height / 2f)
         val minSide = canvas.width.coerceAtMost(canvas.height)
         val scale = cameraWorldUnitsToShow / minSide
-        canvas.scale(1/scale, 1/scale)
-        super.render(canvas)
+        canvas.scale(1 / scale, 1 / scale)
+
+        players.forEach { it.value.render(canvas) }
+        environment.forEach { it.render(canvas) }
+
         canvas.restore()
+
+        controlOverlayListeners.runAll(this, canvas)
     }
 }
