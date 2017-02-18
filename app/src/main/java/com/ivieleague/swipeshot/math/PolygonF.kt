@@ -69,15 +69,18 @@ data class PointPolygonResult(
     fun calculate() {
         bestDistanceSquared = Float.MAX_VALUE
         result.point = point
-        polygon.lineSequence(result.line).forEachIndexed { index, it ->
+        polygon.lineSequence(/*result.line*/).forEachIndexed { index, it ->
+            val result = PointLineResult(point, it)
+            result.line = it
             result.calculate()
-            val distSqr = result.boundedDistanceSquared
+            val distSqr = result.boundedDistance
             if (distSqr < bestDistanceSquared) {
                 bestIndex = index
                 bestDistanceSquared = distSqr
-                best.point = result.point
-                best.line.first = result.line.first
-                best.line.second = result.line.second
+                best = result
+//                best.point = result.point
+//                best.line.first = result.line.first
+//                best.line.second = result.line.second
             }
         }
     }

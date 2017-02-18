@@ -2,10 +2,9 @@ package com.ivieleague.swipeshot.game
 
 import android.graphics.Canvas
 import android.graphics.PointF
-import com.ivieleague.swipeshot.math.copy
-import com.ivieleague.swipeshot.math.length
-import com.ivieleague.swipeshot.math.plusAssign
-import com.ivieleague.swipeshot.math.times
+import android.graphics.RectF
+import com.ivieleague.swipeshot.math.*
+import com.lightningkite.kotlin.runAll
 import java.util.*
 
 /**
@@ -25,6 +24,11 @@ class Player {
     var cooldown = cooldownMax
     val bullets = ArrayList<Bullet>()
 
+    val debugDraws = ArrayList<(Canvas) -> Unit>()
+
+    @Transient val bounds = RectF()
+    @Transient val ejector = PointPolygonResult()
+
     fun shoot(vector: PointF) {
         if (cooldown > 0f) return
         bullets += Bullet(
@@ -38,9 +42,31 @@ class Player {
         if (velocity.length > travelSpeed) {
             velocity.length = travelSpeed
         }
-        position += velocity * timePassed
         cooldown -= timePassed
         if (cooldown < 0f) cooldown = 0f
+
+        position += velocity * timePassed
+        bounds.left = position.x - radius
+        bounds.right = position.x + radius
+        bounds.top = position.y - radius
+        bounds.bottom = position.y + radius
+
+        debugDraws.clear()
+
+        for (wall in world.environment) {
+
+            if (bounds.intersect(wall.bounds)) {
+                ejector.polygon = wall.polygon
+                ejector.point = this.position
+                ejector.calculate()
+                val dist = ejector.best.signedBoundedDistance - radius
+                if (dist < 0f) {
+                    val amount = ejector.best.normal
+                    amount.length -= radius
+                    position -= amount
+                }
+            }
+        }
 
         bullets.removeAll {
             it.step(world, this, timePassed)
@@ -54,6 +80,7 @@ class Player {
         }
         canvas.drawCircle(position.x, position.y, radius, GameWorld.commonPaint)
         canvas.drawCircle(position.x, position.y, radius * cooldown / cooldownMax, GameWorld.commonPaint)
+        debugDraws.runAll(canvas)
     }
 
     class Bullet(

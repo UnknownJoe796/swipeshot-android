@@ -28,19 +28,49 @@ data class PointLineResult(
         ratio = (((point.x - line.first.x) * (line.second.x - line.first.x) + (point.y - line.first.y) * (line.second.y - line.first.y)) / lineLengthSqr)
     }
 
+    val clockwise: Boolean
+        get() {
+            val total = (line.second.x - line.first.x) * (line.second.y + line.first.y) +
+                    (point.x - line.second.x) * (point.y + line.second.y) +
+                    (line.first.x - point.x) * (line.first.y + point.y)
+            return total > 0f
+        }
+
     val distanceSquared: Float
         get() = (point.x - ((line.first.x + ratio * (line.second.x - line.first.x)))).sqr() +
-                (point.x - ((line.first.y + ratio * (line.second.y - line.first.y)))).sqr()
+                (point.y - ((line.first.y + ratio * (line.second.y - line.first.y)))).sqr()
 
     val distance: Float
         get() = Math.sqrt(distanceSquared.toDouble()).toFloat()
 
+    val signedDistance: Float
+        get() = if (clockwise) distance else -distance
+
     val boundedDistanceSquared: Float
         get() = (point.x - ((line.first.x + ratio.coerceIn(0f, 1f) * (line.second.x - line.first.x)))).sqr() +
-                (point.x - ((line.first.y + ratio.coerceIn(0f, 1f) * (line.second.y - line.first.y)))).sqr()
+                (point.y - ((line.first.y + ratio.coerceIn(0f, 1f) * (line.second.y - line.first.y)))).sqr()
 
     val boundedDistance: Float
         get() = Math.sqrt(boundedDistanceSquared.toDouble()).toFloat()
+
+    val signedBoundedDistance: Float
+        get() = if (clockwise) boundedDistance else -boundedDistance
+
+    val normal: PointF
+        get() = if (ratio < 0f) {
+            point - line.first
+        } else if (ratio > 1f) {
+            point - line.second
+        } else {
+            (line.second - line.first).apply {
+                perpendicularAssign()
+                timesAssign(-1f)
+                length = signedDistance
+            }
+        }
+
+    val linePoint: PointF get() = line.interpolate(ratio)
+    val boundedLinePoint: PointF get() = line.interpolate(ratio.coerceIn(0f, 1f))
 }
 
 data class LineLineResult(

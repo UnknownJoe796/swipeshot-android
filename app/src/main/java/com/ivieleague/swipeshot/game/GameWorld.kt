@@ -43,12 +43,20 @@ class GameWorld(var myPlayerId: String) {
                 PointF(10f, 10f),
                 PointF(10f, 5f)
         )))
+        environment += Wall(PolygonF(mutableListOf(
+                PointF(-5f, -5f),
+                PointF(-5f, -10f),
+                //                PointF(-10f, -10f),
+                PointF(-10f, -5f)
+        )))
     }
 
     fun step(timePassed: Float) {
         stepQueue.clear { it.invoke(this, timePassed) }
         stepListeners.runAll(this, timePassed)
         players.forEach { it.value.step(this, timePassed) }
+
+        cameraPosition.set(players[myPlayerId]?.position ?: PointF(0f, 0f))
     }
 
     fun render(canvas: Canvas) {
@@ -58,6 +66,7 @@ class GameWorld(var myPlayerId: String) {
         val minSide = canvas.width.coerceAtMost(canvas.height)
         val scale = cameraWorldUnitsToShow / minSide
         canvas.scale(1 / scale, 1 / scale)
+        canvas.translate(-cameraPosition.x, -cameraPosition.y)
 
         players.forEach { it.value.render(canvas) }
         environment.forEach { it.render(canvas) }
