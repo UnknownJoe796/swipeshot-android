@@ -3,6 +3,9 @@ package com.ivieleague.swipeshot
 import android.graphics.Color
 import android.view.Gravity
 import android.view.View
+import com.ivieleague.swipeshot.game.GameWorld
+import com.ivieleague.swipeshot.game.Player
+import com.ivieleague.swipeshot.game.UDPBroadcastNetInterface
 import com.lightningkite.kotlin.anko.FullInputType
 import com.lightningkite.kotlin.anko.observable.bindString
 import com.lightningkite.kotlin.anko.textInputEditText
@@ -19,6 +22,7 @@ import org.jetbrains.anko.design.textInputLayout
 class SetupVC(val stack: VCStack) : AnkoViewController() {
 
     val nameObs = StandardObservableProperty("")
+    val phaseObs = StandardObservableProperty("Default")
 
     override fun createView(ui: AnkoContext<VCActivity>): View = ui.verticalLayout {
 
@@ -48,11 +52,30 @@ class SetupVC(val stack: VCStack) : AnkoViewController() {
             }
         }.lparams(dip(200), wrapContent) { margin = dip(8) }
 
+        textInputLayout {
+            styleDefault()
+            textInputEditText {
+                styleDefault()
+                hintResource = R.string.world
+                maxLines = 1
+                inputType = FullInputType.NAME
+                bindString(phaseObs)
+            }
+        }.lparams(dip(200), wrapContent) { margin = dip(8) }
+
         button {
             styleDefault()
             textResource = R.string.start
             onClick {
-                stack.push(GameVC(nameObs.value))
+                val net = UDPBroadcastNetInterface<Player>()
+                stack.push(GameVC(
+                        net,
+                        GameWorld(
+                                Player(nameObs.value),
+                                phaseObs.value,
+                                net
+                        )
+                ))
             }
         }.lparams(dip(200), wrapContent) { margin = dip(8) }
     }

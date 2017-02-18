@@ -8,4 +8,7 @@ import java.util.*
 interface NetInterface<T> {
     val broadcastQueue: Queue<T>
     val receiveQueue: Queue<T>
+
+    fun connect()
+    fun disconnect()
 }

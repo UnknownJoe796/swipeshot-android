@@ -8,6 +8,7 @@ import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.View
 import com.ivieleague.swipeshot.game.GameWorld
+import com.ivieleague.swipeshot.game.NetInterface
 import com.ivieleague.swipeshot.game.Player
 import com.ivieleague.swipeshot.game.UDPBroadcastNetInterface
 import com.ivieleague.swipeshot.math.length
@@ -23,13 +24,14 @@ import java.util.*
 /**
  * Created by josep on 2/15/2017.
  */
-class GameVC(playerName: String) : AnkoViewController() {
+class GameVC(
+        val networking: NetInterface<Player?> = UDPBroadcastNetInterface<Player>(),
+        val game: GameWorld = GameWorld(
+                player = Player("Player"),
+                networking = networking
+        )
+) : AnkoViewController() {
 
-    val networking = UDPBroadcastNetInterface<Player>()
-    val game = GameWorld(
-            player = Player(playerName),
-            networking = networking
-    )
     val surfaceHolders = ArrayList<SurfaceHolder>()
 
     override fun createView(ui: AnkoContext<VCActivity>): View = ui.frameLayout {

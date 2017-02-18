@@ -3,4 +3,5 @@
     <string name="instructions">Move by touching the left side of the screen and dragging, and shoot by touching the right side of the screen and dragging.\n\nThis is a LAN game, which means that anyone else on your WiFi will show up in-game.</string>
     <string name="name">Name</string>
     <string name="start">Start</string>
+    <string name="world">World</string>
 </resources>

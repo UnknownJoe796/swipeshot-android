@@ -28,7 +28,7 @@ class UDPBroadcastNetInterface<T : Any>(
 ) : NetInterface<T?> {
 
     var socket: DatagramSocket? = null
-    fun connect() {
+    override fun connect() {
         if (socket != null) disconnect()
         socket = DatagramSocket(port).apply {
             soTimeout = 1000
@@ -37,7 +37,7 @@ class UDPBroadcastNetInterface<T : Any>(
         socket!!.sendQueue(socketSendQueue)
     }
 
-    fun disconnect() {
+    override fun disconnect() {
         socket?.close()
         socket = null
     }

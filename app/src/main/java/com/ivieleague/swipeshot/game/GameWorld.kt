@@ -11,7 +11,7 @@ import com.lightningkite.kotlin.runAll
 import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
 
-class GameWorld(val player: Player?, val networking: NetInterface<Player?>) {
+class GameWorld(val player: Player?, val phase: String = "default", val networking: NetInterface<Player?>) {
 
     companion object {
         val millisecondsBetweenMessages = 30L
@@ -19,7 +19,7 @@ class GameWorld(val player: Player?, val networking: NetInterface<Player?>) {
         val commonPaint = Paint().apply {
             color = Color.BLACK
             style = Paint.Style.STROKE
-            strokeWidth = .1f
+            strokeWidth = .15f
         }
         val textPaint = Paint().apply {
             color = Color.BLACK
@@ -33,7 +33,7 @@ class GameWorld(val player: Player?, val networking: NetInterface<Player?>) {
     @Transient val stepListeners = ConcurrentLinkedQueue<GameWorld.(Float) -> Unit>()
     @Transient val controlOverlayListeners = ConcurrentLinkedQueue<GameWorld.(Canvas) -> Unit>()
 
-    var cameraWorldUnitsToShow = 20f
+    var cameraWorldUnitsToShow = 30f
     val cameraPosition = PointF(0f, 0f)
 
     val spawnPoints = ArrayList<PointF>()
@@ -42,11 +42,12 @@ class GameWorld(val player: Player?, val networking: NetInterface<Player?>) {
 
     //test setup
     init {
-        testLevel()
+        generateLevel(phase, 10, 10)
 
         if (player != null) {
             players[player.id] = player
             player.position.set(selectSpawnPoint())
+            player.phase = phase
         }
     }
 
@@ -56,7 +57,7 @@ class GameWorld(val player: Player?, val networking: NetInterface<Player?>) {
 
         //grab the updates from the other users
         networking.receiveQueue.removeAll {
-            if (it != null && it.id != player?.id) {
+            if (it != null && it.id != player?.id && it.phase == phase) {
                 players[it.id] = it
             }
             true
@@ -160,5 +161,100 @@ class GameWorld(val player: Player?, val networking: NetInterface<Player?>) {
         spawnPoints += PointF(-13f, -13f)
         spawnPoints += PointF(13f, -13f)
         spawnPoints += PointF(-13f, 13f)
+    }
+
+    fun generateLevel(seed: String, cellWidth: Int = 5, cellHeight: Int = 5, cellSize: Float = 10f) {
+        val random = Random(seed.hashCode().toLong() or seed.reversed().hashCode().toLong().shl(32))
+
+        val width = cellWidth * cellSize
+        val height = cellHeight * cellSize
+
+        //outer wall top
+        environment += Wall(PolygonF(mutableListOf(
+                PointF(-1f, -1f),
+                PointF(width, -1f),
+                PointF(width, 0f),
+                PointF(-1f, 0f)
+        )))
+        //outer wall right
+        environment += Wall(PolygonF(mutableListOf(
+                PointF(width, -1f),
+                PointF(width.plus(1), -1f),
+                PointF(width.plus(1), height),
+                PointF(width, height)
+        )))
+        //outer wall bottom
+        environment += Wall(PolygonF(mutableListOf(
+                PointF(width.plus(1), height),
+                PointF(width.plus(1), height.plus(1)),
+                PointF(0f, height.plus(1)),
+                PointF(0f, height)
+        )))
+        //outer wall left
+        environment += Wall(PolygonF(mutableListOf(
+                PointF(0f, height.plus(1)),
+                PointF(-1f, height.plus(1)),
+                PointF(-1f, 0f),
+                PointF(0f, 0f)
+        )))
+
+
+        for (cellX in 1..cellWidth - 2) {
+            for (cellY in 1..cellHeight - 2) {
+                val left = cellX * cellSize + cellSize * .25f
+                val right = cellX * cellSize + cellSize * .75f
+                val top = cellY * cellSize + cellSize * .25f
+                val bottom = cellY * cellSize + cellSize * .75f
+
+                when (random.nextInt(8)) {
+                    0, 1, 2, 3 -> {
+                        environment += Wall(PolygonF(mutableListOf(
+                                PointF(left, top),
+                                PointF(right, top),
+                                PointF(right, bottom),
+                                PointF(left, bottom)
+                        )))
+                    }
+                    4 -> {
+                        environment += Wall(PolygonF(mutableListOf(
+                                PointF(right, top),
+                                PointF(right, bottom),
+                                PointF(left, bottom)
+                        )))
+                    }
+                    5 -> {
+                        environment += Wall(PolygonF(mutableListOf(
+                                PointF(left, top),
+                                PointF(right, bottom),
+                                PointF(left, bottom)
+                        )))
+                    }
+                    6 -> {
+                        environment += Wall(PolygonF(mutableListOf(
+                                PointF(left, top),
+                                PointF(right, top),
+                                PointF(left, bottom)
+                        )))
+                    }
+                    7 -> {
+                        environment += Wall(PolygonF(mutableListOf(
+                                PointF(left, top),
+                                PointF(right, top),
+                                PointF(right, bottom)
+                        )))
+                    }
+                }
+
+            }
+        }
+
+        for (cellX in 0..cellWidth - 1) {
+            spawnPoints += PointF(cellX * cellSize + cellSize / 2, cellSize / 2)
+            spawnPoints += PointF(cellX * cellSize + cellSize / 2, height * cellSize + cellSize / 2)
+        }
+        for (cellY in 1..cellHeight - 2) {
+            spawnPoints += PointF(cellSize / 2, cellY * cellSize + cellSize / 2)
+            spawnPoints += PointF(width * cellSize + cellSize / 2, cellY * cellSize + cellSize / 2)
+        }
     }
 }
