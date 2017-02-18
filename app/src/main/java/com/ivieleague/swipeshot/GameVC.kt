@@ -3,31 +3,51 @@ package com.ivieleague.swipeshot
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.PointF
+import android.net.wifi.WifiManager
 import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.View
 import com.ivieleague.swipeshot.game.GameWorld
+import com.ivieleague.swipeshot.game.Player
+import com.ivieleague.swipeshot.game.UDPBroadcastNetInterface
 import com.ivieleague.swipeshot.math.length
 import com.ivieleague.swipeshot.math.minus
 import com.lightningkite.kotlin.anko.lifecycle
 import com.lightningkite.kotlin.anko.viewcontrollers.AnkoViewController
 import com.lightningkite.kotlin.anko.viewcontrollers.implementations.VCActivity
+import com.lightningkite.kotlin.lifecycle.LifecycleListener
 import com.lightningkite.kotlin.lifecycle.listen
-import org.jetbrains.anko.AnkoContext
-import org.jetbrains.anko.frameLayout
-import org.jetbrains.anko.matchParent
-import org.jetbrains.anko.surfaceView
+import org.jetbrains.anko.*
 import java.util.*
 
 /**
  * Created by josep on 2/15/2017.
  */
-class GameVC : AnkoViewController() {
+class GameVC(playerName: String) : AnkoViewController() {
 
-    val game = GameWorld("SLSH-1")
+    val networking = UDPBroadcastNetInterface<Player>()
+    val game = GameWorld(
+            player = Player(playerName),
+            networking = networking
+    )
     val surfaceHolders = ArrayList<SurfaceHolder>()
 
     override fun createView(ui: AnkoContext<VCActivity>): View = ui.frameLayout {
+        lifecycle.connect(object : LifecycleListener {
+            var lock: WifiManager.MulticastLock? = null
+
+            override fun onStart() {
+                lock = context.wifiManager.createMulticastLock("multicastLock").apply {
+                    setReferenceCounted(true)
+                    this.acquire()
+                }
+            }
+
+            override fun onStop() {
+                lock?.release()
+                lock = null
+            }
+        })
         surfaceView {
             holder.addCallback(object : SurfaceHolder.Callback {
                 override fun surfaceCreated(holder: SurfaceHolder) {
@@ -65,6 +85,7 @@ class GameVC : AnkoViewController() {
     var frameNanoseconds = 16666666
     fun startLoopIfNotRunning() {
         if (thread == null) {
+            networking.connect()
             thread = KeepRunningThread {
                 while (keepRunning) {
                     val startTime = System.nanoTime()
@@ -84,6 +105,7 @@ class GameVC : AnkoViewController() {
                         }
                     }
                 }
+                networking.disconnect()
             }.apply { start() }
         }
     }
@@ -125,7 +147,7 @@ class GameVC : AnkoViewController() {
             if (positions.moveTouchId != null) {
                 val delta = positions.moveCurrentPoint - positions.moveStartPoint
                 if (delta.length > 20f)
-                    game.players[game.myPlayerId]?.velocity?.set(delta)
+                    game.player?.velocity?.set(delta)
             }
         }
 
@@ -186,7 +208,7 @@ class GameVC : AnkoViewController() {
 
                                 //stop
                                 game.stepQueue += {
-                                    game.players[game.myPlayerId]?.velocity?.set(0f, 0f)
+                                    game.player?.velocity?.set(0f, 0f)
                                 }
                             }
                             positions.shootTouchId -> {
@@ -196,7 +218,7 @@ class GameVC : AnkoViewController() {
                                 game.stepQueue += {
                                     val delta = positions.shootCurrentPoint - positions.shootStartPoint
                                     if (delta.length > 20f)
-                                        game.players[game.myPlayerId]?.shoot(delta)
+                                        game.player?.shoot(delta)
                                 }
                             }
                         }

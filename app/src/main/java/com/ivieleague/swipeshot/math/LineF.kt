@@ -7,6 +7,8 @@ import android.graphics.PointF
  */
 data class LineF(var first: PointF = PointF(), var second: PointF = PointF())
 
+fun LineF.delta(): PointF = PointF(second.x - first.x, second.y - first.y)
+
 inline fun LineF.interpolate(amount: Float, existing: PointF = PointF()): PointF {
     existing.x = first.x + amount * (second.x - first.x)
     existing.y = first.y + amount * (second.y - first.y)
