@@ -33,7 +33,6 @@ class Player(var name: String = "") {
 
     var lastMessage = System.currentTimeMillis()
     var id: String = UUID.randomUUID().toString()
-    var phase: String = ""
 
     fun shoot(vector: PointF) {
         if (cooldown > 0f) return

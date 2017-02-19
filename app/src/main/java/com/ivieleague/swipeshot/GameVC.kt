@@ -7,10 +7,7 @@ import android.net.wifi.WifiManager
 import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.View
-import com.ivieleague.swipeshot.game.GameWorld
-import com.ivieleague.swipeshot.game.NetInterface
-import com.ivieleague.swipeshot.game.Player
-import com.ivieleague.swipeshot.game.UDPBroadcastNetInterface
+import com.ivieleague.swipeshot.game.*
 import com.ivieleague.swipeshot.math.length
 import com.ivieleague.swipeshot.math.minus
 import com.lightningkite.kotlin.anko.lifecycle
@@ -25,7 +22,7 @@ import java.util.*
  * Created by josep on 2/15/2017.
  */
 class GameVC(
-        val networking: NetInterface<Player?> = UDPBroadcastNetInterface<Player>(),
+        val networking: NetInterface<State?> = UDPBroadcastNetInterface<State>(),
         val game: GameWorld = GameWorld(
                 player = Player("Player"),
                 networking = networking

@@ -1,17 +1,14 @@
 package com.ivieleague.swipeshot.game
 
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Paint
-import android.graphics.PointF
+import android.graphics.*
 import com.ivieleague.swipeshot.clear
-import com.ivieleague.swipeshot.math.PolygonF
+import com.ivieleague.swipeshot.math.*
 import com.lightningkite.kotlin.collection.random
 import com.lightningkite.kotlin.runAll
 import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
 
-class GameWorld(val player: Player?, val phase: String = "default", val networking: NetInterface<Player?>) {
+class GameWorld(val player: Player?, val world: String = "default", val networking: NetInterface<State?>) {
 
     companion object {
         val millisecondsBetweenMessages = 30L
@@ -42,25 +39,33 @@ class GameWorld(val player: Player?, val phase: String = "default", val networki
 
     //test setup
     init {
-        generateLevel(phase, 10, 10)
+        generateLevel3(world)
 
         if (player != null) {
             players[player.id] = player
             val spawn = selectSpawnPoint()
             player.position.set(spawn)
             println("SPAWN $spawn")
-            player.phase = phase
         }
     }
 
     fun selectSpawnPoint(): PointF = spawnPoints.random()
 
+    fun handleDeath(player: Player) {
+        if (player == this.player)
+            selectSpawnPoint()
+        else
+            player.position.set(2000f, 2000f)
+    }
+
     fun step(timePassed: Float) {
 
         //grab the updates from the other users
         networking.receiveQueue.removeAll {
-            if (it != null && it.id != player?.id && it.phase == phase) {
-                players[it.id] = it
+            if (it != null && it.player.id != player?.id && it.world == world) {
+                players[it.player.id] = it.player.apply {
+                    lastMessage = System.currentTimeMillis()
+                }
             }
             true
         }
@@ -88,7 +93,7 @@ class GameWorld(val player: Player?, val phase: String = "default", val networki
                 player.lastMessage = System.currentTimeMillis()
 
 //                println("SENDINGP")
-                networking.broadcastQueue.add(player)
+                networking.broadcastQueue.add(State(world, player))
             }
 
             //update the camera position
@@ -106,6 +111,9 @@ class GameWorld(val player: Player?, val phase: String = "default", val networki
         canvas.scale(1 / scale, 1 / scale)
         canvas.translate(-cameraPosition.x, -cameraPosition.y)
 
+        GameWorld.commonPaint.alpha = 64
+        spawnPoints.forEach { canvas.drawCircle(it.x, it.y, .1f, GameWorld.commonPaint) }
+        GameWorld.commonPaint.alpha = 255
         players.forEach { it.value.render(canvas) }
         environment.forEach { it.render(canvas) }
 
@@ -114,58 +122,7 @@ class GameWorld(val player: Player?, val phase: String = "default", val networki
         controlOverlayListeners.runAll(this, canvas)
     }
 
-
-    fun testLevel() {
-        environment += Wall(PolygonF(mutableListOf(
-                PointF(5f, 5f),
-                PointF(5f, 10f),
-                PointF(10f, 10f),
-                PointF(10f, 5f)
-        )))
-        environment += Wall(PolygonF(mutableListOf(
-                PointF(-5f, -5f),
-                PointF(-5f, -10f),
-                PointF(-10f, -5f)
-        )))
-
-        //outer wall top
-        environment += Wall(PolygonF(mutableListOf(
-                PointF(-16f, -16f),
-                PointF(15f, -16f),
-                PointF(15f, -15f),
-                PointF(-16f, -15f)
-        )))
-        //outer wall right
-        environment += Wall(PolygonF(mutableListOf(
-                PointF(15f, -16f),
-                PointF(16f, -16f),
-                PointF(16f, 15f),
-                PointF(15f, 15f)
-        )))
-        //outer wall bottom
-        environment += Wall(PolygonF(mutableListOf(
-                PointF(16f, 15f),
-                PointF(16f, 16f),
-                PointF(-15f, 16f),
-                PointF(-15f, 15f)
-        )))
-        //outer wall left
-        environment += Wall(PolygonF(mutableListOf(
-                PointF(-15f, 16f),
-                PointF(-16f, 16f),
-                PointF(-16f, -15f),
-                PointF(-15f, -15f)
-        )))
-
-
-        spawnPoints += PointF(0f, 0f)
-        spawnPoints += PointF(13f, 13f)
-        spawnPoints += PointF(-13f, -13f)
-        spawnPoints += PointF(13f, -13f)
-        spawnPoints += PointF(-13f, 13f)
-    }
-
-    fun generateLevel(seed: String, cellWidth: Int = 5, cellHeight: Int = 5, cellSize: Float = 10f) {
+    fun generateLevel(seed: String, cellWidth: Int = 8, cellHeight: Int = 8, cellSize: Float = 10f) {
         val random = Random(seed.hashCode().toLong() or seed.reversed().hashCode().toLong().shl(32))
 
         val width = cellWidth * cellSize
@@ -200,53 +157,62 @@ class GameWorld(val player: Player?, val phase: String = "default", val networki
                 PointF(0f, 0f)
         )))
 
+        fun generateCell(cellX: Int, cellY: Int, points: MutableList<PointF>) {
+            points.forEach {
+                it.x = cellX * cellSize + it.x * cellSize
+                it.y = cellY * cellSize + it.y * cellSize
+            }
+            environment += Wall(PolygonF(points))
+        }
+
+        val possibilities: List<(Int, Int) -> Unit> = listOf(
+                { x, y -> },
+                //                {x, y -> generateCell(x, y, mutableListOf(
+//                        PointF(0f, .25f),
+//                        PointF(1f, .25f),
+//                        PointF(1f, .75f),
+//                        PointF(0f, .75f)
+//                ))},
+//                {x, y -> generateCell(x, y, mutableListOf(
+//                        PointF(.25f, 0f),
+//                        PointF(.25f, 1f),
+//                        PointF(.75f, 1f),
+//                        PointF(.75f, 0f)
+//                ))},
+//                {x, y -> generateCell(x, y, mutableListOf(
+//                        PointF(.25f, .25f),
+//                        PointF(.75f, .25f),
+//                        PointF(.75f, .75f),
+//                        PointF(.25f, .75f)
+//                ))},
+                { x, y ->
+                    generateCell(x, y, mutableListOf(
+                            PointF(.25f, .5f),
+                            PointF(.5f, .25f),
+                            PointF(.75f, .5f),
+                            PointF(.5f, .75f)
+                    ))
+                },
+                { x, y -> spawnPoints += PointF((x + .5f) * cellSize, (y + .5f) * cellSize) }
+        )
+
+        val remixedPossibilities = possibilities.asSequence().flatMap { p ->
+            val copies = random.nextInt(5)
+            (0..copies).asSequence().map { p }
+        }.toList()
+
+//        val baggedPossibilities = generateSequence {
+//            possibilities.asSequence().flatMap{ p ->
+//                val copies = random.nextInt(5)
+//                (0 .. copies).asSequence().map { p }
+//            }.toMutableList().shuffle(random)
+//        }.flatten()
 
         for (cellX in 1..cellWidth - 2) {
             for (cellY in 1..cellHeight - 2) {
-                val left = cellX * cellSize + cellSize * .25f
-                val right = cellX * cellSize + cellSize * .75f
-                val top = cellY * cellSize + cellSize * .25f
-                val bottom = cellY * cellSize + cellSize * .75f
-
-                when (random.nextInt(8)) {
-                    0, 1, 2, 3 -> {
-                        environment += Wall(PolygonF(mutableListOf(
-                                PointF(left, top),
-                                PointF(right, top),
-                                PointF(right, bottom),
-                                PointF(left, bottom)
-                        )))
-                    }
-                    4 -> {
-                        environment += Wall(PolygonF(mutableListOf(
-                                PointF(right, top),
-                                PointF(right, bottom),
-                                PointF(left, bottom)
-                        )))
-                    }
-                    5 -> {
-                        environment += Wall(PolygonF(mutableListOf(
-                                PointF(left, top),
-                                PointF(right, bottom),
-                                PointF(left, bottom)
-                        )))
-                    }
-                    6 -> {
-                        environment += Wall(PolygonF(mutableListOf(
-                                PointF(left, top),
-                                PointF(right, top),
-                                PointF(left, bottom)
-                        )))
-                    }
-                    7 -> {
-                        environment += Wall(PolygonF(mutableListOf(
-                                PointF(left, top),
-                                PointF(right, top),
-                                PointF(right, bottom)
-                        )))
-                    }
-                }
-
+                remixedPossibilities.let {
+                    it[random.nextInt(it.size)]
+                }.invoke(cellX, cellY)
             }
         }
 
@@ -257,6 +223,166 @@ class GameWorld(val player: Player?, val phase: String = "default", val networki
         for (cellY in 1..cellHeight - 2) {
             spawnPoints += PointF(cellSize / 2, cellY * cellSize + cellSize / 2)
             spawnPoints += PointF((cellWidth - 1) * cellSize + cellSize / 2, cellY * cellSize + cellSize / 2)
+        }
+    }
+
+    fun generateLevel2(seed: String, size: Int = 3, unitSize: Float = 8f) {
+        val random = Random(seed.hashCode().toLong() or seed.reversed().hashCode().toLong().shl(32))
+
+        val radius = (size * 2 + 1.5f) * unitSize / 2f
+
+        //outer wall
+        for (i in 0..5) {
+            val angle = i * Math.PI * 2.0 / 6.0
+            val nextAngle = (i + 1) * Math.PI * 2.0 / 6.0
+            environment += Wall(PolygonF(mutableListOf(
+                    PointF_polar(angle, radius),
+                    PointF_polar(angle, radius + 2f),
+                    PointF_polar(nextAngle, radius + 2f),
+                    PointF_polar(nextAngle, radius)
+            )))
+        }
+
+        fun generateCell(position: PointF) {
+            environment += Wall(PolygonF(
+                    (0..5)
+                            .map { it * Math.PI * 2.0 / 6.0 + Math.PI / 6.0 }
+                            .map { position + PointF_polar(it, unitSize / 4f) }
+                            .toMutableList()
+            ))
+        }
+
+        //cell center
+//        generateCell(PointF(0f, 0f))
+
+        for (i in 0..5) {
+            val angle = i * Math.PI * 2.0 / 6.0
+            for (j in 1..size) {
+                val startPoint = PointF_polar(angle, j * unitSize)
+                for (k in 0..j - 1) {
+                    generateCell(startPoint + PointF_polar(angle + Math.PI * 2.0 / 3.0, k * unitSize))
+                }
+            }
+        }
+
+        spawnPoints += PointF(0f, 0f)
+    }
+
+    fun generateLevel3(
+            seed: String,
+            radius: Float = 70f,
+            itemSizeMin: Float = 2f,
+            itemSizeMax: Float = 8f,
+            itemSpacing: Float = 2f,
+            goalItems: Int = 30,
+            goalSpawns: Int = 20,
+            maxIterations: Int = 10000
+    ) {
+        val random = Random(seed.hashCode().toLong() or seed.reversed().hashCode().toLong().shl(32))
+
+        //outer wall
+        for (i in 0..5) {
+            val angle = i * Math.PI * 2.0 / 6.0
+            val nextAngle = (i + 1) * Math.PI * 2.0 / 6.0
+            environment += Wall(PolygonF(mutableListOf(
+                    PointF_polar(angle, radius),
+                    PointF_polar(angle, radius + 2f),
+                    PointF_polar(nextAngle, radius + 2f),
+                    PointF_polar(nextAngle, radius)
+            )))
+        }
+
+        val innerRadius = radius * .75f
+
+        fun generateItem(position: PointF): PolygonF {
+            val count = random.nextInt(10) + 5
+            val distances = (0..count).map {
+                random.nextFloat() * (itemSizeMax - itemSizeMin) + itemSizeMin
+            }
+            val offset = random.nextInt(count)
+            val rotation = random.nextDouble() * Math.PI * 2.0 / count
+            return PolygonF(
+                    (0..count).map {
+                        position + PointF_polar(
+                                rotation + it * Math.PI * 2.0 / count,
+                                distances[(it + offset) % count]
+                        )
+                    }.toMutableList()
+            )
+        }
+
+        fun okPosition(polygonF: PolygonF): Boolean {
+            val calc = PolygonPolygonResult()
+            val newBounds = RectF()
+            polygonF.getBounds(newBounds)
+            newBounds.left -= itemSpacing
+            newBounds.right += itemSpacing
+            newBounds.top -= itemSpacing
+            newBounds.bottom += itemSpacing
+            val existingBounds = RectF()
+            return environment.none {
+                it.polygon.getBounds(existingBounds)
+                if (existingBounds intersects newBounds) {
+                    calc.first = polygonF
+                    calc.second = it.polygon
+                    calc.calculate()
+//                println(calc.best.bestDistanceSquared)
+                    calc.best.bestDistanceSquared < itemSpacing.sqr()
+                } else false
+            }
+        }
+
+        fun okPosition(point: PointF): Boolean {
+            val calc = PointPolygonResult()
+            val newBounds = RectF(point.x, point.y, point.x, point.y)
+            newBounds.left -= itemSpacing
+            newBounds.right += itemSpacing
+            newBounds.top -= itemSpacing
+            newBounds.bottom += itemSpacing
+            val existingBounds = RectF()
+            calc.point = point
+            return environment.none {
+                it.polygon.getBounds(existingBounds)
+                if (existingBounds intersects newBounds) {
+                    calc.polygon = it.polygon
+                    calc.calculate()
+//                println(calc.best.bestDistanceSquared)
+                    calc.bestDistanceSquared < itemSpacing.sqr()
+                } else false
+            }
+        }
+
+        //cell center
+//        generateCell(PointF(0f, 0f))
+
+        var successes = 0
+        for (i in 0..maxIterations) {
+            val new = generateItem(PointF_polar(
+                    angle = random.nextDouble() * Math.PI * 2,
+                    length = Math.sqrt(random.nextDouble()).toFloat() * innerRadius
+            ))
+            if (okPosition(new)) {
+                environment += Wall(new)
+                successes++
+                if (successes > goalItems) {
+                    break
+                }
+            }
+        }
+
+        successes = 0
+        for (i in 0..maxIterations) {
+            val pos = PointF_polar(
+                    angle = random.nextDouble() * Math.PI * 2,
+                    length = Math.sqrt(random.nextDouble()).toFloat() * innerRadius
+            )
+            if (okPosition(pos)) {
+                spawnPoints += pos
+                successes++
+                if (successes > goalSpawns) {
+                    break
+                }
+            }
         }
     }
 }

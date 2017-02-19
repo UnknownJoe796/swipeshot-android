@@ -4,4 +4,6 @@
     <string name="name">Name</string>
     <string name="start">Start</string>
     <string name="world">World</string>
+    <string name="world_explanation">To play together, you must all be in the same world.  Different text leads to different areas.</string>
+    <string name="generate">Generate</string>
 </resources>

@@ -75,6 +75,16 @@ data class PointLineResult(
     val boundedLinePoint: PointF get() = line.interpolate(ratio.coerceIn(0f, 1f))
 }
 
+infix fun LineF.intersects(other: LineF): Boolean {
+    val denom = (other.second.y - other.first.y) * (second.x - first.x) - (other.second.x - other.first.x) * (second.y - first.y)
+    if (denom == 0f) { // Lines are parallel.
+        return false
+    }
+    val ratioFirst = ((other.second.x - other.first.x) * (first.y - other.first.y) - (other.second.y - other.first.y) * (first.x - other.first.x)) / denom
+    val ratioSecond = ((second.x - first.x) * (first.y - other.first.y) - (second.y - first.y) * (first.x - other.first.x)) / denom
+    return ratioFirst >= 0f && ratioFirst <= 1f && ratioSecond >= 0f && ratioSecond <= 1f
+}
+
 data class LineLineResult(
         var first: LineF = LineF(),
         var second: LineF = LineF()

@@ -72,6 +72,16 @@ class PolygonF(val list: MutableList<PointF> = ArrayList()) : MutableList<PointF
         }
         return existing
     }
+
+    infix fun intersects(other: PolygonF): Boolean {
+        val lineA = LineF()
+        val lineB = LineF()
+        return lineSequence(lineA).any {
+            other.lineSequence(lineB).any {
+                lineA intersects lineB
+            }
+        }
+    }
 }
 
 data class PointPolygonResult(
@@ -126,6 +136,45 @@ data class LinePolygonResult(
                         },
                         index
                 ))
+            }
+        }
+    }
+}
+
+data class PolygonPolygonResult(
+        var first: PolygonF = PolygonF(),
+        var second: PolygonF = PolygonF(),
+        var pointPoly: PointPolygonResult = PointPolygonResult(),
+        var best: PointPolygonResult = PointPolygonResult()
+) {
+    fun calculate() {
+        best.bestDistanceSquared = Float.MAX_VALUE
+
+        pointPoly.polygon = second
+        for (point in first.list) {
+            pointPoly.point = point
+            pointPoly.calculate()
+            if (pointPoly.bestDistanceSquared < best.bestDistanceSquared) {
+                best.point = pointPoly.point
+                best.polygon = pointPoly.polygon
+                best.result = pointPoly.result
+                best.best = pointPoly.best
+                best.bestDistanceSquared = pointPoly.bestDistanceSquared
+                best.bestIndex = pointPoly.bestIndex
+            }
+        }
+
+        pointPoly.polygon = first
+        for (point in second.list) {
+            pointPoly.point = point
+            pointPoly.calculate()
+            if (pointPoly.bestDistanceSquared < best.bestDistanceSquared) {
+                best.point = pointPoly.point
+                best.polygon = pointPoly.polygon
+                best.result = pointPoly.result
+                best.best = pointPoly.best
+                best.bestDistanceSquared = pointPoly.bestDistanceSquared
+                best.bestIndex = pointPoly.bestIndex
             }
         }
     }
